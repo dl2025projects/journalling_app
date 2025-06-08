@@ -3,7 +3,6 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput, 
   TouchableOpacity, 
   ScrollView,
   Alert,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
+import { AutoSaveInput } from '../components';
 
 const EntryDetailScreen = ({ route, navigation }) => {
   const { entryId } = route.params || {};
@@ -19,6 +19,7 @@ const EntryDetailScreen = ({ route, navigation }) => {
   const [content, setContent] = useState('');
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
   
   const { getEntry, updateEntry, deleteEntry, addEntry } = useJournal();
 
@@ -50,7 +51,50 @@ const EntryDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveTitle = async (newTitle) => {
+    return handleSave({ title: newTitle });
+  };
+
+  const handleSaveContent = async (newContent) => {
+    return handleSave({ content: newContent });
+  };
+
+  const handleSave = async (updatedFields = {}) => {
+    const updatedEntry = {
+      title: updatedFields.title !== undefined ? updatedFields.title : title,
+      content: updatedFields.content !== undefined ? updatedFields.content : content,
+      date
+    };
+    
+    // Update local state
+    if (updatedFields.title !== undefined) setTitle(updatedFields.title);
+    if (updatedFields.content !== undefined) setContent(updatedFields.content);
+    
+    try {
+      setSaveStatus('saving');
+      
+      if (entryId) {
+        // Update existing entry
+        await updateEntry(entryId, updatedEntry);
+      } else {
+        // Create new entry
+        const newEntry = await addEntry(updatedEntry);
+        // If this is a new entry that was just created, navigate back
+        if (!entryId && newEntry.id) {
+          navigation.replace('EntryDetail', { entryId: newEntry.id });
+        }
+      }
+      
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1500);
+    } catch (error) {
+      console.error('Error saving entry:', error);
+      setSaveStatus('error');
+      Alert.alert('Error', 'Could not save journal entry');
+    }
+  };
+
+  const handleFullSave = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Title cannot be empty');
       return;
@@ -59,19 +103,7 @@ const EntryDetailScreen = ({ route, navigation }) => {
     try {
       setIsLoading(true);
       
-      const entryData = {
-        title,
-        content,
-        date,
-      };
-      
-      if (entryId) {
-        // Update existing entry
-        await updateEntry(entryId, entryData);
-      } else {
-        // Create new entry
-        await addEntry(entryData);
-      }
+      await handleSave();
       
       // Exit edit mode
       setIsEditing(false);
@@ -80,8 +112,6 @@ const EntryDetailScreen = ({ route, navigation }) => {
       if (!entryId) {
         navigation.goBack();
       }
-      
-      Alert.alert('Success', 'Entry saved successfully');
     } catch (error) {
       console.error('Error saving entry:', error);
       Alert.alert('Error', 'Could not save journal entry');
@@ -150,9 +180,9 @@ const EntryDetailScreen = ({ route, navigation }) => {
           ) : (
             <TouchableOpacity 
               style={styles.button} 
-              onPress={handleSave}
+              onPress={handleFullSave}
             >
-              <Text style={styles.buttonText}>Save</Text>
+              <Text style={styles.buttonText}>Done</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -161,20 +191,22 @@ const EntryDetailScreen = ({ route, navigation }) => {
       <ScrollView style={styles.content}>
         {isEditing ? (
           <>
-            <TextInput
-              style={styles.titleInput}
+            <AutoSaveInput
               value={title}
               onChangeText={setTitle}
+              onSave={handleSaveTitle}
               placeholder="Enter title"
               placeholderTextColor="#999"
+              style={styles.titleInput}
             />
-            <TextInput
-              style={styles.contentInput}
+            <AutoSaveInput
               value={content}
               onChangeText={setContent}
+              onSave={handleSaveContent}
               placeholder="Write your thoughts here..."
               placeholderTextColor="#999"
-              multiline
+              multiline={true}
+              style={styles.contentInput}
               textAlignVertical="top"
             />
           </>
@@ -246,14 +278,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     padding: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
   },
   contentInput: {
     fontSize: 16,
     lineHeight: 24,
     padding: 5,
-    height: 300,
   },
 });
 

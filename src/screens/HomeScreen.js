@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
 import { formatDate } from '../utils/dateUtils';
+import { JournalEntryItem, StreakCounter } from '../components';
 
 const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,24 +33,22 @@ const HomeScreen = ({ navigation }) => {
     }
   };
   
+  const handleEntryPress = (entryId) => {
+    navigation.navigate('EntryDetail', { entryId });
+  };
+
   const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.entryItem}
-      onPress={() => navigation.navigate('EntryDetail', { entryId: item.id })}
-    >
-      <Text style={styles.entryDate}>{formatDate(item.date)}</Text>
-      <Text style={styles.entryTitle}>{item.title}</Text>
-      <Text style={styles.entryPreview} numberOfLines={2}>{item.content}</Text>
-    </TouchableOpacity>
+    <JournalEntryItem 
+      entry={item} 
+      onPress={() => handleEntryPress(item.id)} 
+    />
   );
   
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>My Journal</Text>
-        <View style={styles.streakContainer}>
-          <Text style={styles.streakText}>{streak} day streak</Text>
-        </View>
+        <StreakCounter streak={streak} />
       </View>
       
       <TextInput
@@ -120,16 +119,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
-  streakContainer: {
-    backgroundColor: '#ffffff33',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  streakText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
   searchInput: {
     margin: 10,
     padding: 10,
@@ -141,29 +130,6 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     padding: 10,
-  },
-  entryItem: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 5,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-  },
-  entryDate: {
-    color: '#666',
-    fontSize: 12,
-  },
-  entryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 5,
-  },
-  entryPreview: {
-    color: '#444',
   },
   addButton: {
     position: 'absolute',
