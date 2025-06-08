@@ -3,14 +3,13 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TouchableOpacity, 
   ScrollView,
   Alert,
   ActivityIndicator
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
-import { AutoSaveInput } from '../components';
+import { AutoSaveInput, AnimatedButton } from '../components';
 
 const EntryDetailScreen = ({ route, navigation }) => {
   const { entryId } = route.params || {};
@@ -163,27 +162,23 @@ const EntryDetailScreen = ({ route, navigation }) => {
         <Text style={styles.date}>{formatDate(date)}</Text>
         <View style={styles.headerButtons}>
           {entryId && !isEditing && (
-            <TouchableOpacity 
-              style={[styles.button, styles.deleteButton]} 
+            <AnimatedButton
+              title="Delete"
               onPress={handleDelete}
-            >
-              <Text style={styles.buttonText}>Delete</Text>
-            </TouchableOpacity>
+              danger={true}
+              style={styles.buttonSpacing}
+            />
           )}
           {!isEditing ? (
-            <TouchableOpacity 
-              style={styles.button} 
+            <AnimatedButton
+              title="Edit"
               onPress={() => setIsEditing(true)}
-            >
-              <Text style={styles.buttonText}>Edit</Text>
-            </TouchableOpacity>
+            />
           ) : (
-            <TouchableOpacity 
-              style={styles.button} 
+            <AnimatedButton
+              title="Done"
               onPress={handleFullSave}
-            >
-              <Text style={styles.buttonText}>Done</Text>
-            </TouchableOpacity>
+            />
           )}
         </View>
       </View>
@@ -246,19 +241,8 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
   },
-  button: {
-    backgroundColor: '#4a6ea9',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  deleteButton: {
-    backgroundColor: '#e74c3c',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  buttonSpacing: {
+    marginRight: 10,
   },
   content: {
     flex: 1,

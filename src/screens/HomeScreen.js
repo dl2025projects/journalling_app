@@ -3,7 +3,6 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TouchableOpacity, 
   FlatList,
   TextInput,
   ActivityIndicator,
@@ -11,7 +10,7 @@ import {
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
 import { formatDate } from '../utils/dateUtils';
-import { JournalEntryItem, StreakCounter } from '../components';
+import { JournalEntryItem, StreakCounter, AnimatedButton } from '../components';
 
 const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,10 +36,11 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('EntryDetail', { entryId });
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item, index }) => (
     <JournalEntryItem 
       entry={item} 
-      onPress={() => handleEntryPress(item.id)} 
+      onPress={() => handleEntryPress(item.id)}
+      index={index}
     />
   );
   
@@ -65,9 +65,11 @@ const HomeScreen = ({ navigation }) => {
       ) : error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={refreshEntries}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <AnimatedButton 
+            title="Retry" 
+            onPress={refreshEntries}
+            style={styles.retryButton}
+          />
         </View>
       ) : (
         <FlatList
@@ -92,12 +94,14 @@ const HomeScreen = ({ navigation }) => {
         />
       )}
       
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => navigation.navigate('NewEntry')}
-      >
-        <Text style={styles.addButtonText}>+</Text>
-      </TouchableOpacity>
+      <View style={styles.fabContainer}>
+        <AnimatedButton
+          title="+"
+          onPress={() => navigation.navigate('NewEntry')}
+          style={styles.addButton}
+          textStyle={styles.addButtonText}
+        />
+      </View>
     </View>
   );
 };
@@ -131,25 +135,22 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
   },
-  addButton: {
+  fabContainer: {
     position: 'absolute',
     right: 20,
     bottom: 20,
+  },
+  addButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#4a6ea9',
+    paddingHorizontal: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   addButtonText: {
     fontSize: 30,
-    color: 'white',
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
@@ -168,14 +169,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#4a6ea9',
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   emptyContainer: {
     flex: 1,

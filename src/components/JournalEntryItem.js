@@ -1,22 +1,25 @@
 import React from 'react';
 import { 
-  View, 
   Text, 
   StyleSheet, 
   TouchableOpacity 
 } from 'react-native';
 import { formatDate } from '../utils/dateUtils';
+import AnimatedListItem from './AnimatedListItem';
 
-const JournalEntryItem = ({ entry, onPress }) => {
+const JournalEntryItem = ({ entry, onPress, index = 0 }) => {
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={onPress}
-    >
-      <Text style={styles.date}>{formatDate(entry.date)}</Text>
-      <Text style={styles.title}>{entry.title}</Text>
-      <Text style={styles.preview} numberOfLines={2}>{entry.content}</Text>
-    </TouchableOpacity>
+    <AnimatedListItem index={index}>
+      <TouchableOpacity 
+        style={styles.container}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.date}>{formatDate(entry.date)}</Text>
+        <Text style={styles.title}>{entry.title}</Text>
+        <Text style={styles.preview} numberOfLines={2}>{entry.content}</Text>
+      </TouchableOpacity>
+    </AnimatedListItem>
   );
 };
 
@@ -25,7 +28,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 15,
     borderRadius: 5,
-    marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
