@@ -113,4 +113,3 @@ The journal app now integrates with a MySQL database through a Node.js backend A
 ### API Documentation
 
 Once the server is running, you can access the API documentation at http://localhost:3000/api-docs
-
