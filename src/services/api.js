@@ -1,140 +1,222 @@
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Base URL for API calls
-const API_URL = 'http://localhost:3000/api'; // This will be replaced with the actual API URL
+// Change this to your actual server URL
+const BASE_URL = 'http://192.168.10.26:3000/api';
 
-// Create an axios instance with default config
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for adding auth token
-api.interceptors.request.use(
-  (config) => {
-    // In a real app, we would get the token from storage
-    // const token = await AsyncStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+/**
+ * Handles API responses
+ * @param {Response} response - Fetch API response
+ * @returns {Promise<any>} - Response data
+ */
+const handleResponse = async (response) => {
+  const contentType = response.headers.get('content-type');
+  
+  if (!response.ok) {
+    let errorData;
+    try {
+      if (contentType?.includes('application/json')) {
+        errorData = await response.json();
+      } else {
+        errorData = { message: await response.text() };
+      }
+    } catch (e) {
+      errorData = { message: 'An unknown error occurred' };
+    }
+    
+    // Handle specific status codes
+    if (response.status === 401) {
+      // Clear token on auth error
+      await AsyncStorage.removeItem('userToken');
+    }
+    
+    throw errorData;
   }
-);
-
-// Journal entry related API calls
-const journalApi = {
-  // Get all journal entries
-  getEntries: async () => {
-    try {
-      // In a real app, this would be a real API call
-      // const response = await api.get('/entries');
-      // return response.data;
-      
-      // For now, return mock data
-      return [
-        { id: '1', date: '2025-06-07', title: 'My First Entry', content: 'Today was a great day...' },
-        { id: '2', date: '2025-06-06', title: 'Learning React Native', content: 'I started learning...' },
-      ];
-    } catch (error) {
-      console.error('Error fetching entries:', error);
-      throw error;
-    }
-  },
   
-  // Get a single journal entry by ID
-  getEntry: async (id) => {
-    try {
-      // In a real app, this would be a real API call
-      // const response = await api.get(`/entries/${id}`);
-      // return response.data;
-      
-      // For now, return mock data
-      return {
-        id,
-        title: 'My Journal Entry',
-        content: 'This is the content of my journal entry. It was a wonderful day filled with coding and learning new things about React Native.',
-        date: new Date().toISOString().split('T')[0],
-      };
-    } catch (error) {
-      console.error(`Error fetching entry ${id}:`, error);
-      throw error;
-    }
-  },
+  if (contentType?.includes('application/json')) {
+    return response.json();
+  }
   
-  // Create a new journal entry
-  createEntry: async (entry) => {
-    try {
-      // In a real app, this would be a real API call
-      // const response = await api.post('/entries', entry);
-      // return response.data;
-      
-      // For now, return mock data with a generated ID
-      return {
-        ...entry,
-        id: Math.random().toString(36).substr(2, 9),
-      };
-    } catch (error) {
-      console.error('Error creating entry:', error);
-      throw error;
-    }
-  },
-  
-  // Update an existing journal entry
-  updateEntry: async (id, entry) => {
-    try {
-      // In a real app, this would be a real API call
-      // const response = await api.put(`/entries/${id}`, entry);
-      // return response.data;
-      
-      // For now, return the updated entry
-      return {
-        ...entry,
-        id,
-      };
-    } catch (error) {
-      console.error(`Error updating entry ${id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Delete a journal entry
-  deleteEntry: async (id) => {
-    try {
-      // In a real app, this would be a real API call
-      // await api.delete(`/entries/${id}`);
-      // return true;
-      
-      // For now, just return true
-      return true;
-    } catch (error) {
-      console.error(`Error deleting entry ${id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Get streak information
-  getStreak: async () => {
-    try {
-      // In a real app, this would be a real API call
-      // const response = await api.get('/streak');
-      // return response.data;
-      
-      // For now, return mock data
-      return {
-        currentStreak: 5,
-        longestStreak: 10,
-        lastEntryDate: new Date().toISOString().split('T')[0],
-      };
-    } catch (error) {
-      console.error('Error fetching streak info:', error);
-      throw error;
-    }
-  },
+  return response.text();
 };
 
-export default journalApi; 
+/**
+ * Get stored JWT token from AsyncStorage
+ */
+const getToken = async () => {
+  try {
+    return await AsyncStorage.getItem('userToken');
+  } catch (error) {
+    console.error('Error getting token:', error);
+    return null;
+  }
+};
+
+/**
+ * Set authentication headers
+ */
+const getAuthHeaders = async () => {
+  const token = await getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
+/**
+ * API client for authentication requests
+ */
+export const authApi = {
+  /**
+   * Register a new user
+   * @param {Object} userData - User registration data
+   */
+  register: async (userData) => {
+    const response = await fetch(`${BASE_URL}/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Login user
+   * @param {Object} credentials - User login credentials
+   */
+  login: async (credentials) => {
+    const response = await fetch(`${BASE_URL}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials)
+    });
+    
+    const data = await handleResponse(response);
+    
+    // Save token to storage
+    if (data.token) {
+      await AsyncStorage.setItem('userToken', data.token);
+    }
+    
+    return data;
+  },
+  
+  /**
+   * Get current user profile
+   */
+  getProfile: async () => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/users/profile`, {
+      headers
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Logout user
+   */
+  logout: async () => {
+    await AsyncStorage.removeItem('userToken');
+  }
+};
+
+/**
+ * API client for journal entry requests
+ */
+export const journalApi = {
+  /**
+   * Get all journal entries
+   */
+  getEntries: async () => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal`, {
+      headers
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Get a specific journal entry
+   * @param {number} id - Entry ID
+   */
+  getEntry: async (id) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal/${id}`, {
+      headers
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Create a new journal entry
+   * @param {Object} entryData - Journal entry data
+   */
+  createEntry: async (entryData) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(entryData)
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Update a journal entry
+   * @param {number} id - Entry ID
+   * @param {Object} entryData - Journal entry data
+   */
+  updateEntry: async (id, entryData) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal/${id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(entryData)
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Delete a journal entry
+   * @param {number} id - Entry ID
+   */
+  deleteEntry: async (id) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Search journal entries
+   * @param {string} query - Search query
+   */
+  searchEntries: async (query) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal/search?query=${encodeURIComponent(query)}`, {
+      headers
+    });
+    
+    return handleResponse(response);
+  },
+  
+  /**
+   * Get streak information
+   */
+  getStreak: async () => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BASE_URL}/journal/streak`, {
+      headers
+    });
+    
+    return handleResponse(response);
+  }
+}; 

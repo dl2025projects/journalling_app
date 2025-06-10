@@ -6,9 +6,12 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  TouchableOpacity,
+  Alert
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils/dateUtils';
 import { JournalEntryItem, StreakCounter, AnimatedButton } from '../components';
 
@@ -16,6 +19,7 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const { entries, loading, error, streak, refreshEntries, searchEntries } = useJournal();
+  const { logout, userInfo } = useAuth();
   
   const filteredEntries = searchQuery.trim() 
     ? searchEntries(searchQuery) 
@@ -36,6 +40,21 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('EntryDetail', { entryId });
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: logout
+        }
+      ]
+    );
+  };
+
   const renderItem = ({ item, index }) => (
     <JournalEntryItem 
       entry={item} 
@@ -48,7 +67,17 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>My Journal</Text>
-        <StreakCounter streak={streak} />
+        <View style={styles.headerRight}>
+          <StreakCounter streak={streak} />
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={handleLogout}
+          >
+            <Text style={styles.profileText}>
+              {userInfo?.username?.charAt(0)?.toUpperCase() || 'U'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       <TextInput
@@ -75,7 +104,7 @@ const HomeScreen = ({ navigation }) => {
         <FlatList
           data={filteredEntries}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.id.toString()}
           style={styles.list}
           refreshControl={
             <RefreshControl
@@ -118,10 +147,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+  },
+  profileButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 15,
+  },
+  profileText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4a6ea9',
   },
   searchInput: {
     margin: 10,

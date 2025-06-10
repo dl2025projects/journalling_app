@@ -51,106 +51,66 @@ The application follows a component-based architecture using React Native:
 - **Hooks**: Custom React hooks
 - **Context**: Application state management
 
-## How to Contribute
+## Quick Setup
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+For a streamlined setup experience, you can use the provided setup script:
 
-# Getting Started
-
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
-
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+```
+node app_setup.js
 ```
 
-## Step 2: Build and run your app
+This script will:
+1. Install all dependencies for the mobile app
+2. Setup the server (database, environment variables)
+3. Configure the API endpoint with your local IP address
+4. Optionally start both the server and the app
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Database Integration
 
-### Android
+The journal app now integrates with a MySQL database through a Node.js backend API. This allows for persistent storage of journal entries and user authentication.
 
-```sh
-# Using npm
-npm run android
+### Server Setup
 
-# OR using Yarn
-yarn android
-```
+1. Navigate to the server directory:
+   ```
+   cd server
+   ```
 
-### iOS
+2. Run the setup script:
+   ```
+   node setup.js
+   ```
+   This will guide you through creating an environment file, installing dependencies, and setting up the database.
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+3. Start the server:
+   ```
+   npm run dev
+   ```
+   The server will run on http://localhost:3000 by default.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### Mobile App Configuration
 
-```sh
-bundle install
-```
+1. Update the API endpoint in `src/services/api.js`:
+   ```javascript
+   // Change this to your actual server URL (your computer's IP address)
+   const BASE_URL = 'http://192.168.x.x:3000/api';
+   ```
 
-Then, and every time you update your native dependencies, run:
+2. Install AsyncStorage package if not already installed:
+   ```
+   npm install @react-native-async-storage/async-storage
+   ```
 
-```sh
-bundle exec pod install
-```
+3. Run the app:
+   ```
+   npx react-native run-android
+   ```
+   or
+   ```
+   npx react-native run-ios
+   ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### API Documentation
 
-```sh
-# Using npm
-npm run ios
+Once the server is running, you can access the API documentation at http://localhost:3000/api-docs
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.

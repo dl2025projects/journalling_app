@@ -1,7 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import journalApi from '../services/api';
+import { journalApi } from '../services/api';
 import { calculateStreak } from '../utils/dateUtils';
+import { useAuth } from './AuthContext';
 
 // Create context
 const JournalContext = createContext();
@@ -21,38 +22,40 @@ export const JournalProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [streak, setStreak] = useState(0);
+  const { isLoggedIn } = useAuth();
 
-  // Load entries from storage or API
+  // Load entries from storage or API when user is logged in
   useEffect(() => {
-    loadEntries();
-  }, []);
-
-  // Calculate streak whenever entries change
-  useEffect(() => {
-    if (entries.length > 0) {
-      const dates = entries.map(entry => entry.date);
-      const currentStreak = calculateStreak(dates);
-      setStreak(currentStreak);
+    if (isLoggedIn) {
+      loadEntries();
+    } else {
+      // Clear entries when logged out
+      setEntries([]);
     }
-  }, [entries]);
+  }, [isLoggedIn]);
 
-  // Load entries from API and save to local storage
+  // Load entries from API
   const loadEntries = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Try to get entries from AsyncStorage first
-      const storedEntries = await AsyncStorage.getItem('journal_entries');
+      // Fetch entries from API
+      const fetchedEntries = await journalApi.getEntries();
+      setEntries(fetchedEntries);
       
-      if (storedEntries) {
-        setEntries(JSON.parse(storedEntries));
-      } else {
-        // If no stored entries, fetch from API
-        const fetchedEntries = await journalApi.getEntries();
-        setEntries(fetchedEntries);
-        // Save to AsyncStorage
-        await AsyncStorage.setItem('journal_entries', JSON.stringify(fetchedEntries));
+      // Get streak information from API
+      try {
+        const streakData = await journalApi.getStreak();
+        setStreak(streakData.currentStreak);
+      } catch (streakError) {
+        console.error('Error loading streak:', streakError);
+        // Fallback to client-side calculation
+        if (fetchedEntries.length > 0) {
+          const dates = fetchedEntries.map(entry => entry.date);
+          const currentStreak = calculateStreak(dates);
+          setStreak(currentStreak);
+        }
       }
     } catch (err) {
       console.error('Error loading entries:', err);
@@ -75,8 +78,13 @@ export const JournalProvider = ({ children }) => {
       const updatedEntries = [...entries, newEntry];
       setEntries(updatedEntries);
       
-      // Save to AsyncStorage
-      await AsyncStorage.setItem('journal_entries', JSON.stringify(updatedEntries));
+      // Update streak
+      try {
+        const streakData = await journalApi.getStreak();
+        setStreak(streakData.currentStreak);
+      } catch (streakError) {
+        console.error('Error updating streak:', streakError);
+      }
       
       return newEntry;
     } catch (err) {
@@ -99,12 +107,9 @@ export const JournalProvider = ({ children }) => {
       
       // Update state with updated entry
       const updatedEntries = entries.map(entry => 
-        entry.id === id ? { ...entry, ...updatedEntry } : entry
+        entry.id === id ? { ...entry, ...result } : entry
       );
       setEntries(updatedEntries);
-      
-      // Save to AsyncStorage
-      await AsyncStorage.setItem('journal_entries', JSON.stringify(updatedEntries));
       
       return result;
     } catch (err) {
@@ -129,9 +134,6 @@ export const JournalProvider = ({ children }) => {
       const updatedEntries = entries.filter(entry => entry.id !== id);
       setEntries(updatedEntries);
       
-      // Save to AsyncStorage
-      await AsyncStorage.setItem('journal_entries', JSON.stringify(updatedEntries));
-      
       return true;
     } catch (err) {
       console.error('Error deleting entry:', err);
@@ -152,7 +154,7 @@ export const JournalProvider = ({ children }) => {
         return existingEntry;
       }
       
-      // If not found in state, try to get from API
+      // If not found in state, get from API
       const entry = await journalApi.getEntry(id);
       return entry;
     } catch (err) {
@@ -163,14 +165,31 @@ export const JournalProvider = ({ children }) => {
   };
 
   // Search entries by keyword
-  const searchEntries = (keyword) => {
-    if (!keyword) return entries;
-    
-    const lowercaseKeyword = keyword.toLowerCase();
-    return entries.filter(entry => 
-      entry.title.toLowerCase().includes(lowercaseKeyword) || 
-      entry.content.toLowerCase().includes(lowercaseKeyword)
-    );
+  const searchEntries = async (keyword) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!keyword || keyword.trim() === '') {
+        return entries;
+      }
+      
+      // Search entries via API
+      const searchResults = await journalApi.searchEntries(keyword);
+      return searchResults;
+    } catch (err) {
+      console.error('Error searching entries:', err);
+      setError('Failed to search journal entries');
+      
+      // Fallback to local search if API fails
+      const lowercaseKeyword = keyword.toLowerCase();
+      return entries.filter(entry => 
+        entry.title.toLowerCase().includes(lowercaseKeyword) || 
+        entry.content.toLowerCase().includes(lowercaseKeyword)
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Refresh entries from API
@@ -185,8 +204,13 @@ export const JournalProvider = ({ children }) => {
       // Update state
       setEntries(freshEntries);
       
-      // Save to AsyncStorage
-      await AsyncStorage.setItem('journal_entries', JSON.stringify(freshEntries));
+      // Update streak
+      try {
+        const streakData = await journalApi.getStreak();
+        setStreak(streakData.currentStreak);
+      } catch (streakError) {
+        console.error('Error updating streak:', streakError);
+      }
       
       return freshEntries;
     } catch (err) {
