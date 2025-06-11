@@ -96,28 +96,35 @@ server/
 └── README.md           # Documentation
 ``` 
 
-## Deployment on Railway
+## Deployment on Render
 
-This application can be easily deployed on Railway.app. Follow these steps:
+This application can be easily deployed on Render.com. Follow these steps:
 
-1. Create an account on [Railway](https://railway.app/)
-2. Create a new project and select "Deploy from GitHub repo"
-3. Connect your GitHub account and select this repository
-4. Add a MySQL database to your project:
-   - Go to "New" and select "Database" → "MySQL"
-   - Railway will provision a new MySQL database
+1. Create an account on [Render](https://render.com/)
+2. Create a new Web Service:
+   - Connect your GitHub repository
+   - Select the repository with this code
+   - Set build command: `npm install`
+   - Set start command: `npm start`
 
-5. Set the required environment variables:
+3. Add a PostgreSQL database:
+   - Go to "New" and select "PostgreSQL"
+   - Render will provision a new PostgreSQL database
+
+4. Set the required environment variables in your Web Service:
    - `NODE_ENV`: Set to "production"
    - `JWT_SECRET`: Generate a secure random string
-   
-6. Railway will automatically detect the Procfile and start the application.
+   - `DB_DIALECT`: Set to "postgres"
+   - `DATABASE_URL`: Copy the Internal Database URL from your PostgreSQL service
+
+5. Deploy your service
+   - Render will automatically build and deploy your application
 
 ## Connecting the Mobile App to Deployed API
 
-Update the API base URL in your mobile app to point to your Railway deployment:
+Update the API base URL in your mobile app to point to your Render deployment:
 
 ```javascript
-// In src/services/api.js
-const BASE_URL = 'https://your-railway-app-url.railway.app/api';
+// In src/config/api.config.js
+const PRODUCTION_URL = 'https://your-app-name.onrender.com/api';
 ``` 

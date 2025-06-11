@@ -1,19 +1,33 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Database connection for production (Railway) or development
+// Determine the database dialect from environment or default to mysql
+const DIALECT = process.env.DB_DIALECT || 'mysql';
+
+// Database connection for production or development
 const sequelize = new Sequelize(
   process.env.DATABASE_URL || `mysql://${process.env.DB_USER || 'root'}:${process.env.DB_PASSWORD || 'Nomispal@69'}@${process.env.DB_HOST || 'localhost'}/${process.env.DB_NAME || 'journalapp'}`,
   {
-    dialect: 'mysql',
+    dialect: DIALECT,
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
-      // For MySQL 8.0+
-      charset: 'utf8mb4',
+      // SSL configuration for production databases
       ssl: process.env.NODE_ENV === 'production' ? {
         rejectUnauthorized: true
-      } : false
+      } : false,
+      // For MySQL 8.0+
+      charset: DIALECT === 'mysql' ? 'utf8mb4' : undefined
     },
+    // For Render's PostgreSQL which uses self-signed certificates
+    ...(DIALECT === 'postgres' && process.env.NODE_ENV === 'production' ? {
+      ssl: true,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false
+        }
+      }
+    } : {}),
     pool: {
       max: 5,
       min: 0,
@@ -26,7 +40,7 @@ const sequelize = new Sequelize(
 // Test the connection
 sequelize.authenticate()
   .then(() => {
-    console.log('Database connection established successfully.');
+    console.log(`Database connection established successfully using ${DIALECT}.`);
   })
   .catch(err => {
     console.error('Unable to connect to the database:', err);

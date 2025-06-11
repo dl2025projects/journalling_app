@@ -9,8 +9,8 @@ import { Platform } from 'react-native';
 const DEV_ANDROID_URL = 'http://10.0.2.2:3000/api';
 const DEV_IOS_URL = 'http://localhost:3000/api';
 
-// Production URL - Change this when deploying to Railway
-const PRODUCTION_URL = 'https://your-railway-app-url.railway.app/api'; 
+// Production URL - Change this when deploying to Render
+const PRODUCTION_URL = 'https://your-app-name.onrender.com/api'; 
 
 /**
  * Get the appropriate API URL based on environment and platform
