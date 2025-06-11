@@ -8,6 +8,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { AutoSaveInput, AnimatedButton } from '../components';
 
@@ -20,7 +21,8 @@ const EntryDetailScreen = ({ route, navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
   
-  const { getEntry, updateEntry, deleteEntry, addEntry } = useJournal();
+  const { getEntry, updateEntry, deleteEntry, addEntry, error: journalError } = useJournal();
+  const { refreshTokenIfNeeded, isLoggedIn } = useAuth();
 
   useEffect(() => {
     if (entryId) {
@@ -33,9 +35,32 @@ const EntryDetailScreen = ({ route, navigation }) => {
     }
   }, [entryId]);
 
+  // Handle journal context errors
+  useEffect(() => {
+    if (journalError && journalError.includes('Authorization token')) {
+      Alert.alert(
+        'Session Expired',
+        'Your session has expired. Please log in again.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
+    }
+  }, [journalError, navigation]);
+
   const loadEntry = async () => {
     try {
       setIsLoading(true);
+      
+      // Check token validity first
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+        return;
+      }
+      
       const entry = await getEntry(entryId);
       if (entry) {
         setTitle(entry.title);
@@ -44,7 +69,16 @@ const EntryDetailScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       console.error('Error loading entry:', error);
-      Alert.alert('Error', 'Could not load journal entry');
+      
+      if (error.message && error.message.includes('Authorization token')) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+      } else {
+        Alert.alert('Error', 'Could not load journal entry');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +106,18 @@ const EntryDetailScreen = ({ route, navigation }) => {
     try {
       setSaveStatus('saving');
       
+      // Check token validity first
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setSaveStatus('error');
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+        return;
+      }
+      
       if (entryId) {
         // Update existing entry
         await updateEntry(entryId, updatedEntry);
@@ -89,7 +135,18 @@ const EntryDetailScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error('Error saving entry:', error);
       setSaveStatus('error');
-      Alert.alert('Error', 'Could not save journal entry');
+      
+      if (error.message && error.message.includes('Authorization token')) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+      } else {
+        Alert.alert('Error', 'Could not save journal entry');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -102,6 +159,17 @@ const EntryDetailScreen = ({ route, navigation }) => {
     try {
       setIsLoading(true);
       
+      // Check token validity first
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+        return;
+      }
+      
       await handleSave();
       
       // Exit edit mode
@@ -113,7 +181,16 @@ const EntryDetailScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       console.error('Error saving entry:', error);
-      Alert.alert('Error', 'Could not save journal entry');
+      
+      if (error.message && error.message.includes('Authorization token')) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please log in again.',
+          [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        );
+      } else {
+        Alert.alert('Error', 'Could not save journal entry');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -134,11 +211,32 @@ const EntryDetailScreen = ({ route, navigation }) => {
           onPress: async () => {
             try {
               setIsLoading(true);
+              
+              // Check token validity first
+              const isTokenValid = await refreshTokenIfNeeded();
+              if (!isTokenValid && isLoggedIn) {
+                Alert.alert(
+                  'Session Expired',
+                  'Your session has expired. Please log in again.',
+                  [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+                );
+                return;
+              }
+              
               await deleteEntry(entryId);
               navigation.goBack();
             } catch (error) {
               console.error('Error deleting entry:', error);
-              Alert.alert('Error', 'Could not delete journal entry');
+              
+              if (error.message && error.message.includes('Authorization token')) {
+                Alert.alert(
+                  'Session Expired',
+                  'Your session has expired. Please log in again.',
+                  [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+                );
+              } else {
+                Alert.alert('Error', 'Could not delete journal entry');
+              }
               setIsLoading(false);
             }
           },

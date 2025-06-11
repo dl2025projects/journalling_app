@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import API_URL from '../config/api.config';
 
-// Change this to your actual server URL
-const BASE_URL = 'http://192.168.10.26:3000/api';
+// Base URL from configuration
+const BASE_URL = API_URL;
 
 /**
  * Handles API responses
@@ -27,6 +28,7 @@ const handleResponse = async (response) => {
     if (response.status === 401) {
       // Clear token on auth error
       await AsyncStorage.removeItem('userToken');
+      errorData.message = 'Authorization token not found';
     }
     
     throw errorData;
@@ -56,10 +58,37 @@ const getToken = async () => {
  */
 const getAuthHeaders = async () => {
   const token = await getToken();
+  
+  if (!token) {
+    // Throw a specific error when token is missing
+    throw { message: 'Authorization token not found' };
+  }
+  
   return {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    'Authorization': `Bearer ${token}`
   };
+};
+
+/**
+ * Make API request with automatic token handling
+ */
+const apiRequest = async (url, options = {}) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        ...headers
+      }
+    });
+    
+    return handleResponse(response);
+  } catch (error) {
+    console.error(`API request failed: ${url}`, error);
+    throw error;
+  }
 };
 
 /**
@@ -77,7 +106,14 @@ export const authApi = {
       body: JSON.stringify(userData)
     });
     
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    
+    // Save token to storage
+    if (data.token) {
+      await AsyncStorage.setItem('userToken', data.token);
+    }
+    
+    return data;
   },
   
   /**
@@ -105,12 +141,7 @@ export const authApi = {
    * Get current user profile
    */
   getProfile: async () => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/users/profile`, {
-      headers
-    });
-    
-    return handleResponse(response);
+    return apiRequest(`${BASE_URL}/users/profile`);
   },
   
   /**
@@ -129,12 +160,7 @@ export const journalApi = {
    * Get all journal entries
    */
   getEntries: async () => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal`, {
-      headers
-    });
-    
-    return handleResponse(response);
+    return apiRequest(`${BASE_URL}/journal`);
   },
   
   /**
@@ -142,12 +168,7 @@ export const journalApi = {
    * @param {number} id - Entry ID
    */
   getEntry: async (id) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal/${id}`, {
-      headers
-    });
-    
-    return handleResponse(response);
+    return apiRequest(`${BASE_URL}/journal/${id}`);
   },
   
   /**
@@ -155,14 +176,10 @@ export const journalApi = {
    * @param {Object} entryData - Journal entry data
    */
   createEntry: async (entryData) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal`, {
+    return apiRequest(`${BASE_URL}/journal`, {
       method: 'POST',
-      headers,
       body: JSON.stringify(entryData)
     });
-    
-    return handleResponse(response);
   },
   
   /**
@@ -171,14 +188,10 @@ export const journalApi = {
    * @param {Object} entryData - Journal entry data
    */
   updateEntry: async (id, entryData) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal/${id}`, {
+    return apiRequest(`${BASE_URL}/journal/${id}`, {
       method: 'PUT',
-      headers,
       body: JSON.stringify(entryData)
     });
-    
-    return handleResponse(response);
   },
   
   /**
@@ -186,13 +199,9 @@ export const journalApi = {
    * @param {number} id - Entry ID
    */
   deleteEntry: async (id) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal/${id}`, {
-      method: 'DELETE',
-      headers
+    return apiRequest(`${BASE_URL}/journal/${id}`, {
+      method: 'DELETE'
     });
-    
-    return handleResponse(response);
   },
   
   /**
@@ -200,23 +209,13 @@ export const journalApi = {
    * @param {string} query - Search query
    */
   searchEntries: async (query) => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal/search?query=${encodeURIComponent(query)}`, {
-      headers
-    });
-    
-    return handleResponse(response);
+    return apiRequest(`${BASE_URL}/journal/search?query=${encodeURIComponent(query)}`);
   },
   
   /**
    * Get streak information
    */
   getStreak: async () => {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${BASE_URL}/journal/streak`, {
-      headers
-    });
-    
-    return handleResponse(response);
+    return apiRequest(`${BASE_URL}/journal/streak`);
   }
 }; 

@@ -4,7 +4,8 @@ import {
   StyleSheet, 
   View,
   Text,
-  ActivityIndicator
+  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
 
 const AutoSaveInput = ({ 
@@ -20,8 +21,13 @@ const AutoSaveInput = ({
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [localValue, setLocalValue] = useState(value);
+  const [pendingSave, setPendingSave] = useState(null);
   const timeoutRef = useRef(null);
+  const maxRetries = 3;
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryTimeout, setRetryTimeout] = useState(null);
 
   useEffect(() => {
     setLocalValue(value);
@@ -29,12 +35,15 @@ const AutoSaveInput = ({
 
   useEffect(() => {
     return () => {
-      // Clear timeout on unmount
+      // Clear all timeouts on unmount
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
     };
-  }, []);
+  }, [retryTimeout]);
 
   const handleChangeText = (text) => {
     setLocalValue(text);
@@ -43,6 +52,11 @@ const AutoSaveInput = ({
     // Reset any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+    }
+    
+    // Reset error state when user types
+    if (saveError) {
+      setSaveError(false);
     }
     
     // Set a new timeout for auto-save
@@ -59,7 +73,11 @@ const AutoSaveInput = ({
     
     try {
       setIsSaving(true);
+      setSaveError(false);
       await onSave(textToSave);
+      
+      // Reset retry count on successful save
+      setRetryCount(0);
       
       // Show saved indicator briefly
       setShowSavedIndicator(true);
@@ -68,8 +86,31 @@ const AutoSaveInput = ({
       }, 1500);
     } catch (error) {
       console.error('Error saving content:', error);
+      setSaveError(true);
+      
+      // Store the pending save for retry
+      setPendingSave(textToSave);
+      
+      // Auto-retry with exponential backoff if under max retries
+      if (retryCount < maxRetries) {
+        const nextRetryDelay = Math.pow(2, retryCount) * 1000; // exponential backoff
+        const timeout = setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+          handleSave(textToSave);
+        }, nextRetryDelay);
+        
+        setRetryTimeout(timeout);
+      }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (pendingSave) {
+      // Reset retry count for manual retry
+      setRetryCount(0);
+      handleSave(pendingSave);
     }
   };
 
@@ -91,9 +132,18 @@ const AutoSaveInput = ({
         </View>
       )}
       
-      {showSavedIndicator && !isSaving && (
+      {showSavedIndicator && !isSaving && !saveError && (
         <View style={styles.indicator}>
           <Text style={styles.savedText}>Saved</Text>
+        </View>
+      )}
+      
+      {saveError && !isSaving && (
+        <View style={styles.errorIndicator}>
+          <Text style={styles.errorText}>Failed</Text>
+          <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -122,6 +172,28 @@ const styles = StyleSheet.create({
   savedText: {
     color: '#4caf50',
     fontSize: 12,
+  },
+  errorIndicator: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginRight: 6,
+  },
+  retryButton: {
+    backgroundColor: '#4a6ea9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 11,
   }
 });
 

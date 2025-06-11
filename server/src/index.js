@@ -34,8 +34,10 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}/api`,
-        description: 'Development server',
+        url: process.env.NODE_ENV === 'production' 
+          ? '/api' 
+          : `http://localhost:${PORT}/api`,
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
       },
     ],
     components: {
@@ -67,7 +69,9 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Welcome to Journal App API',
-    documentation: `http://localhost:${PORT}/api-docs`
+    documentation: process.env.NODE_ENV === 'production'
+      ? '/api-docs'
+      : `http://localhost:${PORT}/api-docs`
   });
 });
 

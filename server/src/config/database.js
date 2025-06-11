@@ -1,18 +1,18 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Create a new Sequelize instance with MySQL
+// Database connection for production (Railway) or development
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'journalapp',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || 'Nomispal@69',
+  process.env.DATABASE_URL || `mysql://${process.env.DB_USER || 'root'}:${process.env.DB_PASSWORD || 'Nomispal@69'}@${process.env.DB_HOST || 'localhost'}/${process.env.DB_NAME || 'journalapp'}`,
   {
-    host: process.env.DB_HOST || 'localhost',
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
       // For MySQL 8.0+
-      charset: 'utf8mb4'
+      charset: 'utf8mb4',
+      ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: true
+      } : false
     },
     pool: {
       max: 5,

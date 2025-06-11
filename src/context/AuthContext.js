@@ -19,21 +19,29 @@ export const AuthProvider = ({ children }) => {
         const token = await AsyncStorage.getItem('userToken');
         
         if (token) {
-          setUserToken(token);
+          // Verify token validity
+          const isValid = await verifyToken(token);
           
-          // Fetch user profile
-          try {
-            const userProfile = await authApi.getProfile();
-            setUserInfo(userProfile);
-          } catch (error) {
-            console.error('Error fetching user profile:', error);
-            // If we can't get the profile, clear the token
-            await authApi.logout();
-            setUserToken(null);
+          if (isValid) {
+            setUserToken(token);
+            
+            // Fetch user profile
+            try {
+              const userProfile = await authApi.getProfile();
+              setUserInfo(userProfile);
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+              // If we can't get the profile, clear the token
+              await logout();
+            }
+          } else {
+            // If token is invalid, clear it
+            await logout();
           }
         }
       } catch (e) {
         console.error('Restoration error:', e);
+        await logout();
       } finally {
         setIsLoading(false);
       }
@@ -41,6 +49,43 @@ export const AuthProvider = ({ children }) => {
 
     bootstrapAsync();
   }, []);
+
+  // Verify token validity
+  const verifyToken = async (token) => {
+    try {
+      // Store token temporarily
+      await AsyncStorage.setItem('userToken', token);
+      setUserToken(token);
+      
+      // Try to access a protected endpoint to verify token
+      await authApi.getProfile();
+      return true;
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return false;
+    }
+  };
+
+  // Refresh token if needed
+  const refreshTokenIfNeeded = async () => {
+    try {
+      // Check if we have a token
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return false;
+      
+      // Verify current token
+      const isValid = await verifyToken(token);
+      if (isValid) return true;
+      
+      // If invalid, try to refresh (implementation depends on your backend)
+      // This would be where you'd call a refresh token endpoint
+      // For now, just return false to indicate we couldn't refresh
+      return false;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  };
 
   // Login function
   const login = async (email, password) => {
@@ -116,6 +161,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     clearError,
+    refreshTokenIfNeeded,
     isLoggedIn: !!userToken
   };
 

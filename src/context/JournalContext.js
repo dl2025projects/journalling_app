@@ -22,7 +22,7 @@ export const JournalProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [streak, setStreak] = useState(0);
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, refreshTokenIfNeeded } = useAuth();
 
   // Load entries from storage or API when user is logged in
   useEffect(() => {
@@ -39,6 +39,13 @@ export const JournalProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        return;
+      }
       
       // Fetch entries from API
       const fetchedEntries = await journalApi.getEntries();
@@ -71,6 +78,13 @@ export const JournalProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
+      
       // Add entry via API
       const newEntry = await journalApi.createEntry(entry);
       
@@ -102,6 +116,13 @@ export const JournalProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
+      
       // Update entry via API
       const result = await journalApi.updateEntry(id, updatedEntry);
       
@@ -127,6 +148,13 @@ export const JournalProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
+      
       // Delete entry via API
       await journalApi.deleteEntry(id);
       
@@ -147,6 +175,13 @@ export const JournalProvider = ({ children }) => {
   // Get a single entry by ID
   const getEntry = async (id) => {
     try {
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
+      
       // Check if the entry is in the current state
       const existingEntry = entries.find(entry => entry.id === id);
       
@@ -169,6 +204,13 @@ export const JournalProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
       
       if (!keyword || keyword.trim() === '') {
         return entries;
@@ -197,6 +239,13 @@ export const JournalProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Ensure token is valid before making API calls
+      const isTokenValid = await refreshTokenIfNeeded();
+      if (!isTokenValid && isLoggedIn) {
+        setError('Session expired. Please log in again.');
+        throw new Error('Authorization token not found');
+      }
       
       // Fetch fresh entries from API
       const freshEntries = await journalApi.getEntries();

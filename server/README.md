@@ -95,3 +95,29 @@ server/
 ├── package.json        # Dependencies and scripts
 └── README.md           # Documentation
 ``` 
+
+## Deployment on Railway
+
+This application can be easily deployed on Railway.app. Follow these steps:
+
+1. Create an account on [Railway](https://railway.app/)
+2. Create a new project and select "Deploy from GitHub repo"
+3. Connect your GitHub account and select this repository
+4. Add a MySQL database to your project:
+   - Go to "New" and select "Database" → "MySQL"
+   - Railway will provision a new MySQL database
+
+5. Set the required environment variables:
+   - `NODE_ENV`: Set to "production"
+   - `JWT_SECRET`: Generate a secure random string
+   
+6. Railway will automatically detect the Procfile and start the application.
+
+## Connecting the Mobile App to Deployed API
+
+Update the API base URL in your mobile app to point to your Railway deployment:
+
+```javascript
+// In src/services/api.js
+const BASE_URL = 'https://your-railway-app-url.railway.app/api';
+``` 

@@ -6,9 +6,9 @@ yarn-error.log
 # Environment variables
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.development
+.env.test
+.env.production
 
 # Logs
 logs
@@ -24,4 +24,13 @@ temp/
 
 # OS files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Additional files
+npm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+coverage
+.nyc_output
+.lock-wscript 
