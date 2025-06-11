@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -18,12 +18,44 @@ import { JournalEntryItem, StreakCounter, AnimatedButton } from '../components';
 const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [filteredEntries, setFilteredEntries] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const { entries, loading, error, streak, refreshEntries, searchEntries } = useJournal();
   const { logout, userInfo } = useAuth();
   
-  const filteredEntries = searchQuery.trim() 
-    ? searchEntries(searchQuery) 
-    : entries;
+  // Handle search
+  useEffect(() => {
+    // Don't search if query is empty
+    if (!searchQuery.trim()) {
+      setFilteredEntries(entries);
+      return;
+    }
+    
+    // Use a small delay to avoid searching on every keystroke
+    const searchTimer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        // For simple searches, use local filtering
+        const lowercaseKeyword = searchQuery.toLowerCase();
+        const results = entries.filter(entry => 
+          entry.title.toLowerCase().includes(lowercaseKeyword) || 
+          entry.content.toLowerCase().includes(lowercaseKeyword)
+        );
+        setFilteredEntries(results);
+      } catch (error) {
+        console.error('Error during search:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    
+    return () => clearTimeout(searchTimer);
+  }, [searchQuery, entries]);
+  
+  // Initialize filtered entries with all entries
+  useEffect(() => {
+    setFilteredEntries(entries);
+  }, [entries]);
   
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,18 +119,26 @@ const HomeScreen = ({ navigation }) => {
         onChangeText={setSearchQuery}
       />
       
-      {loading && !refreshing ? (
+      {(loading && !refreshing) || isSearching ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4a6ea9" />
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <AnimatedButton 
-            title="Retry" 
-            onPress={refreshEntries}
-            style={styles.retryButton}
-          />
+          {error.includes('Session expired') ? (
+            <AnimatedButton 
+              title="Log In" 
+              onPress={logout}
+              style={styles.retryButton}
+            />
+          ) : (
+            <AnimatedButton 
+              title="Retry" 
+              onPress={refreshEntries}
+              style={styles.retryButton}
+            />
+          )}
         </View>
       ) : (
         <FlatList

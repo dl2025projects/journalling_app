@@ -4,7 +4,8 @@ import {
   Text, 
   StyleSheet, 
   Animated, 
-  Easing 
+  Easing,
+  View
 } from 'react-native';
 
 const AnimatedButton = ({ 
@@ -14,7 +15,9 @@ const AnimatedButton = ({
   textStyle, 
   color = '#4a6ea9',
   danger = false,
-  disabled = false
+  disabled = false,
+  icon = null,
+  small = false
 }) => {
   const scaleValue = useRef(new Animated.Value(1)).current;
 
@@ -44,15 +47,24 @@ const AnimatedButton = ({
         onPressOut={handlePressOut}
         style={[
           styles.button,
+          small && styles.smallButton,
           { backgroundColor: danger ? '#e74c3c' : color },
           disabled && styles.disabledButton,
           style,
         ]}
         disabled={disabled}
       >
-        <Text style={[styles.text, textStyle, disabled && styles.disabledText]}>
-          {title}
-        </Text>
+        <View style={styles.buttonContent}>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          <Text style={[
+            styles.text, 
+            small && styles.smallText,
+            textStyle, 
+            disabled && styles.disabledText
+          ]}>
+            {title}
+          </Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -69,10 +81,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.5,
   },
+  smallButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    marginRight: 5,
+  },
   text: {
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  smallText: {
+    fontSize: 13,
   },
   disabledButton: {
     backgroundColor: '#cccccc',

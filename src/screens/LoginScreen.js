@@ -12,12 +12,14 @@ import {
   Alert
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import API_URL, { getBaseUrl } from '../config/api.config';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
   
   const { login, register, isLoading, error, clearError } = useAuth();
 
@@ -30,6 +32,23 @@ const LoginScreen = ({ navigation }) => {
     }
   }, [error, clearError]);
 
+  // Test server connection
+  const testConnection = async () => {
+    setDebugInfo('Testing connection...');
+    try {
+      // Use the base URL for health check, not the API URL
+      const baseUrl = getBaseUrl();
+      setDebugInfo(`Trying to connect to: ${baseUrl}/health`);
+      
+      const response = await fetch(`${baseUrl}/health`);
+      const data = await response.text();
+      setDebugInfo(`Connection successful: ${data}`);
+    } catch (err) {
+      setDebugInfo(`Connection error: ${err.message}`);
+      console.error('Connection test error:', err);
+    }
+  };
+
   const handleSubmit = async () => {
     if (isLogin) {
       // Login mode
@@ -38,9 +57,14 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
       
+      setDebugInfo('Logging in...');
       const success = await login(email, password);
+      
       if (success) {
+        setDebugInfo('Login successful');
         // Navigation is handled by App.js based on auth state
+      } else {
+        setDebugInfo('Login failed: ' + (error || 'Unknown error'));
       }
     } else {
       // Register mode
@@ -54,9 +78,14 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
       
+      setDebugInfo('Registering...');
       const success = await register(username, email, password);
+      
       if (success) {
+        setDebugInfo('Registration successful');
         // Navigation is handled by App.js based on auth state
+      } else {
+        setDebugInfo('Registration failed: ' + (error || 'Unknown error'));
       }
     }
   };
@@ -128,6 +157,20 @@ const LoginScreen = ({ navigation }) => {
                 : "Already have an account? Login"}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.button, {marginTop: 20, backgroundColor: '#888'}]}
+            onPress={testConnection}
+          >
+            <Text style={styles.buttonText}>
+              Test Connection
+            </Text>
+          </TouchableOpacity>
+
+          {debugInfo ? (
+            <Text style={styles.debugText}>{debugInfo}</Text>
+          ) : null}
+          
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -183,6 +226,13 @@ const styles = StyleSheet.create({
     color: '#4a6ea9',
     fontSize: 16,
   },
+  debugText: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#eee',
+    borderRadius: 5,
+    fontSize: 12
+  }
 });
 
 export default LoginScreen; 

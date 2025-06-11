@@ -5,12 +5,14 @@ import {
   StyleSheet, 
   ScrollView,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler
 } from 'react-native';
 import { useJournal } from '../context/JournalContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDate, getTodayDate } from '../utils/dateUtils';
 import { AutoSaveInput, AnimatedButton } from '../components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EntryDetailScreen = ({ route, navigation }) => {
   const { entryId } = route.params || {};
@@ -20,9 +22,14 @@ const EntryDetailScreen = ({ route, navigation }) => {
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
+  const [hasDraft, setHasDraft] = useState(false);
   
   const { getEntry, updateEntry, deleteEntry, addEntry, error: journalError } = useJournal();
   const { refreshTokenIfNeeded, isLoggedIn } = useAuth();
+
+  // Draft keys
+  const getDraftTitleKey = () => `draft_title_${entryId || 'new'}`;
+  const getDraftContentKey = () => `draft_content_${entryId || 'new'}`;
 
   useEffect(() => {
     if (entryId) {
@@ -32,7 +39,21 @@ const EntryDetailScreen = ({ route, navigation }) => {
       const today = getTodayDate();
       setDate(today);
       setIsEditing(true);
+      loadDrafts(); // Try to load any existing drafts for new entry
     }
+    
+    // Handle back button to save drafts
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isEditing) {
+        saveDraftsAndGoBack();
+        return true; // Prevent default behavior
+      }
+      return false; // Let default back behavior happen
+    });
+    
+    return () => {
+      backHandler.remove();
+    };
   }, [entryId]);
 
   // Handle journal context errors
@@ -45,6 +66,102 @@ const EntryDetailScreen = ({ route, navigation }) => {
       );
     }
   }, [journalError, navigation]);
+  
+  // Load drafts from AsyncStorage
+  const loadDrafts = async () => {
+    try {
+      const draftTitle = await AsyncStorage.getItem(getDraftTitleKey());
+      const draftContent = await AsyncStorage.getItem(getDraftContentKey());
+      
+      console.log('Loading drafts:', { draftTitle, draftContent });
+      
+      if (draftTitle) {
+        setTitle(draftTitle);
+        setHasDraft(true);
+      }
+      
+      if (draftContent) {
+        setContent(draftContent);
+        setHasDraft(true);
+      }
+    } catch (error) {
+      console.error('Error loading drafts:', error);
+    }
+  };
+  
+  // Save drafts to AsyncStorage
+  const saveDraft = async (key, value) => {
+    try {
+      console.log('Saving draft:', { key, value });
+      if (value && value.trim() !== '') {
+        await AsyncStorage.setItem(key, value);
+        setHasDraft(true);
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
+  };
+  
+  // Save content specifically
+  const saveContentDraft = async (newContent) => {
+    console.log('Saving content draft:', newContent);
+    await saveDraft(getDraftContentKey(), newContent);
+    setContent(newContent);
+    return true;
+  };
+
+  // Save title specifically
+  const saveTitleDraft = async (newTitle) => {
+    console.log('Saving title draft:', newTitle);
+    await saveDraft(getDraftTitleKey(), newTitle);
+    setTitle(newTitle);
+    return true;
+  };
+  
+  // Clear drafts when entry is saved
+  const clearDrafts = async () => {
+    try {
+      await AsyncStorage.removeItem(getDraftTitleKey());
+      await AsyncStorage.removeItem(getDraftContentKey());
+      setHasDraft(false);
+    } catch (error) {
+      console.error('Error clearing drafts:', error);
+    }
+  };
+  
+  // Save drafts and go back
+  const saveDraftsAndGoBack = async () => {
+    console.log('Saving drafts before going back:', { title, content });
+    
+    // Save any unsaved changes to drafts
+    if (title && title.trim() !== '') {
+      await saveDraft(getDraftTitleKey(), title);
+    }
+    
+    if (content && content.trim() !== '') {
+      await saveDraft(getDraftContentKey(), content);
+    } else {
+      // Even save empty content to preserve the state
+      await saveDraft(getDraftContentKey(), content || '');
+    }
+    
+    // Check if we have any drafts after saving
+    const hasTitleDraft = await AsyncStorage.getItem(getDraftTitleKey());
+    const hasContentDraft = await AsyncStorage.getItem(getDraftContentKey());
+    
+    const hasAnyDraft = !!(hasTitleDraft || hasContentDraft);
+    setHasDraft(hasAnyDraft);
+    
+    if (hasAnyDraft) {
+      Alert.alert(
+        'Save Draft',
+        'Your changes have been saved as a draft. You can continue editing later.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const loadEntry = async () => {
     try {
@@ -67,6 +184,9 @@ const EntryDetailScreen = ({ route, navigation }) => {
         setContent(entry.content);
         setDate(entry.date);
       }
+      
+      // Check if there are drafts that are newer
+      await loadDrafts();
     } catch (error) {
       console.error('Error loading entry:', error);
       
@@ -85,11 +205,15 @@ const EntryDetailScreen = ({ route, navigation }) => {
   };
 
   const handleSaveTitle = async (newTitle) => {
-    return handleSave({ title: newTitle });
+    // Only save draft, don't auto-save to server
+    await saveDraft(getDraftTitleKey(), newTitle);
+    setTitle(newTitle);
   };
 
   const handleSaveContent = async (newContent) => {
-    return handleSave({ content: newContent });
+    // Only save draft, don't auto-save to server
+    await saveDraft(getDraftContentKey(), newContent);
+    setContent(newContent);
   };
 
   const handleSave = async (updatedFields = {}) => {
@@ -151,8 +275,10 @@ const EntryDetailScreen = ({ route, navigation }) => {
   };
 
   const handleFullSave = async () => {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Title cannot be empty');
+    console.log('Handle full save called with:', { title, content });
+    
+    if (!title || !title.trim()) {
+      Alert.alert('Error', 'Please provide title');
       return;
     }
 
@@ -170,7 +296,28 @@ const EntryDetailScreen = ({ route, navigation }) => {
         return;
       }
       
-      await handleSave();
+      // Create the full entry object
+      const completeEntry = {
+        title: title.trim(),
+        content: content || '',
+        date: date
+      };
+      
+      console.log('Saving complete entry:', completeEntry);
+      
+      // Save to server - this uses the addEntry or updateEntry methods
+      if (entryId) {
+        await updateEntry(entryId, completeEntry);
+      } else {
+        const newEntry = await addEntry(completeEntry);
+        if (newEntry && newEntry.id) {
+          // If we have a new ID, update our route params
+          navigation.setParams({ entryId: newEntry.id });
+        }
+      }
+      
+      // Clear drafts after successful save
+      await clearDrafts();
       
       // Exit edit mode
       setIsEditing(false);
@@ -189,7 +336,7 @@ const EntryDetailScreen = ({ route, navigation }) => {
           [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
         );
       } else {
-        Alert.alert('Error', 'Could not save journal entry');
+        Alert.alert('Error', error.message || 'Could not save journal entry');
       }
     } finally {
       setIsLoading(false);
@@ -224,6 +371,7 @@ const EntryDetailScreen = ({ route, navigation }) => {
               }
               
               await deleteEntry(entryId);
+              await clearDrafts(); // Clear any drafts when entry is deleted
               navigation.goBack();
             } catch (error) {
               console.error('Error deleting entry:', error);
@@ -264,18 +412,26 @@ const EntryDetailScreen = ({ route, navigation }) => {
               title="Delete"
               onPress={handleDelete}
               danger={true}
-              style={styles.buttonSpacing}
+              small={true}
+              style={[styles.actionButton, styles.deleteButton, styles.buttonSpacing]}
+              textStyle={styles.buttonText}
             />
           )}
           {!isEditing ? (
             <AnimatedButton
               title="Edit"
               onPress={() => setIsEditing(true)}
+              small={true}
+              style={styles.actionButton}
+              textStyle={styles.buttonText}
             />
           ) : (
             <AnimatedButton
               title="Done"
               onPress={handleFullSave}
+              small={true}
+              style={styles.actionButton}
+              textStyle={styles.buttonText}
             />
           )}
         </View>
@@ -287,20 +443,26 @@ const EntryDetailScreen = ({ route, navigation }) => {
             <AutoSaveInput
               value={title}
               onChangeText={setTitle}
-              onSave={handleSaveTitle}
+              onSave={saveTitleDraft}
               placeholder="Enter title"
               placeholderTextColor="#999"
               style={styles.titleInput}
+              required={true}  // Make title required
+              minLength={1}    // Minimum title length
+              autoSaveDelay={5000} // 5 seconds for drafts
+              disableAutoSave={true} // Completely disable auto-save to server
             />
             <AutoSaveInput
               value={content}
               onChangeText={setContent}
-              onSave={handleSaveContent}
+              onSave={saveContentDraft}
               placeholder="Write your thoughts here..."
               placeholderTextColor="#999"
               multiline={true}
               style={styles.contentInput}
               textAlignVertical="top"
+              autoSaveDelay={5000} // 5 seconds for drafts 
+              disableAutoSave={true} // Completely disable auto-save to server
             />
           </>
         ) : (
@@ -308,6 +470,17 @@ const EntryDetailScreen = ({ route, navigation }) => {
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.contentText}>{content}</Text>
           </>
+        )}
+        
+        {hasDraft && !isEditing && (
+          <View style={styles.draftIndicator}>
+            <Text style={styles.draftText}>You have a draft saved</Text>
+            <AnimatedButton
+              title="Continue Editing"
+              onPress={() => setIsEditing(true)}
+              style={styles.draftButton}
+            />
+          </View>
         )}
       </ScrollView>
     </View>
@@ -329,18 +502,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    backgroundColor: '#f8f8f8',
   },
   date: {
     fontSize: 16,
     color: '#666',
+    flex: 1,
   },
   headerButtons: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   buttonSpacing: {
-    marginRight: 10,
+    marginRight: 8,
+  },
+  actionButton: {
+    minWidth: 70,
+  },
+  deleteButton: {
+    paddingHorizontal: 10,
+    minWidth: 60,
+  },
+  buttonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -366,6 +554,22 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     padding: 5,
   },
+  draftIndicator: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c2e0ff',
+    alignItems: 'center',
+  },
+  draftText: {
+    color: '#4a6ea9',
+    marginBottom: 10,
+  },
+  draftButton: {
+    width: '100%',
+  }
 });
 
 export default EntryDetailScreen; 

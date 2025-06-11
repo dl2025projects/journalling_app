@@ -1,115 +1,71 @@
-# Journal Mobile Application
+# Journal App
 
-A mobile application built with React Native for personal journaling.
-
-## Purpose
-
-This application allows users to create and manage personal journal entries. Users can track their daily thoughts, experiences, and memories in a secure and user-friendly environment.
+A React Native mobile app for personal journaling with cloud synchronization.
 
 ## Features
 
-- Create, edit, and delete journal entries
-- Search functionality to find entries by keywords
-- Streak counter to track daily journaling consistency
-- Auto-save functionality to prevent data loss
+- Create and manage journal entries
+- Cloud synchronization
+- User authentication
+- Offline draft support
+- Search functionality
 
-## Dependencies
+## Production Setup
 
-- React Native
-- React Navigation
-- Async Storage for local data persistence
-- Axios for API communication
+This version of the Journal App is configured to work with the deployed backend server hosted on Render.com. There's no need to run a local server.
 
-## Installation
+### Cleaning Up the Project
 
-1. Clone the repository:
+To remove unnecessary development files and optimize the project for production:
+
+1. Run the cleanup script:
    ```
-   git clone https://github.com/dl2025projects/journalling_app.git
+   node cleanup.js
    ```
+   Or double-click on `cleanup.bat` (Windows)
 
-2. Install dependencies:
+This will:
+- Remove test and development directories
+- Clean up build artifacts
+- Remove iOS files (since we're focusing on Android)
+- Optimize package.json for production
+
+### Building a Production APK
+
+To build a production-ready APK:
+
+1. Run the build script:
    ```
-   cd JournalApp
-   npm install
+   node build-production.js
    ```
+   Or double-click on `build-production.bat` (Windows)
 
-3. Run the application:
-   ```
-   npx react-native run-android
-   # or
-   npx react-native run-ios
-   ```
+This will:
+- Run cleanup if it hasn't been done yet
+- Configure the app for production
+- Build a release APK
+- Copy the APK to the project root as `JournalApp-release.apk`
 
-## Architecture
+### Direct Installation
 
-The application follows a component-based architecture using React Native:
+After building, you can install the app directly on your Android device by:
 
-- **Screens**: Contains all the main screens of the application
-- **Components**: Reusable UI components
-- **Services**: API and data handling services
-- **Utils**: Utility functions and helpers
-- **Hooks**: Custom React hooks
-- **Context**: Application state management
+1. Enabling "Install from Unknown Sources" in your device settings
+2. Transferring the APK to your device
+3. Opening the APK file on your device to install it
 
-## Quick Setup
+## Running for Development
 
-For a streamlined setup experience, you can use the provided setup script:
+If you need to make changes to the app:
 
+1. Ensure you have React Native development environment set up
+2. Run: `npx react-native run-android`
+
+## Backend
+
+The app is configured to use the backend deployed at:
 ```
-node app_setup.js
+https://journal-app-server.onrender.com/api
 ```
 
-This script will:
-1. Install all dependencies for the mobile app
-2. Setup the server (database, environment variables)
-3. Configure the API endpoint with your local IP address
-4. Optionally start both the server and the app
-
-## Database Integration
-
-The journal app now integrates with a MySQL database through a Node.js backend API. This allows for persistent storage of journal entries and user authentication.
-
-### Server Setup
-
-1. Navigate to the server directory:
-   ```
-   cd server
-   ```
-
-2. Run the setup script:
-   ```
-   node setup.js
-   ```
-   This will guide you through creating an environment file, installing dependencies, and setting up the database.
-
-3. Start the server:
-   ```
-   npm run dev
-   ```
-   The server will run on http://localhost:3000 by default.
-
-### Mobile App Configuration
-
-1. Update the API endpoint in `src/services/api.js`:
-   ```javascript
-   // Change this to your actual server URL (your computer's IP address)
-   const BASE_URL = 'http://192.168.x.x:3000/api';
-   ```
-
-2. Install AsyncStorage package if not already installed:
-   ```
-   npm install @react-native-async-storage/async-storage
-   ```
-
-3. Run the app:
-   ```
-   npx react-native run-android
-   ```
-   or
-   ```
-   npx react-native run-ios
-   ```
-
-### API Documentation
-
-Once the server is running, you can access the API documentation at http://localhost:3000/api-docs
+No local server setup is required.

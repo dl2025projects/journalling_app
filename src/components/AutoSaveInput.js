@@ -17,6 +17,9 @@ const AutoSaveInput = ({
   style,
   placeholderTextColor = '#999',
   autoSaveDelay = 2000, // milliseconds
+  required = false, // Whether this field is required for saving
+  minLength = 0,    // Minimum length required to save
+  disableAutoSave = false, // Disable auto-save functionality
   ...props 
 }) => {
   const [isSaving, setIsSaving] = useState(false);
@@ -28,10 +31,20 @@ const AutoSaveInput = ({
   const maxRetries = 3;
   const [retryCount, setRetryCount] = useState(0);
   const [retryTimeout, setRetryTimeout] = useState(null);
+  
+  // Store locally for draft functionality
+  const [draft, setDraft] = useState(value || '');
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
     setLocalValue(value);
+    setDraft(value || '');
   }, [value]);
+  
+  // Load draft from AsyncStorage on mount
+  useEffect(() => {
+    loadDraft();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -44,28 +57,96 @@ const AutoSaveInput = ({
       }
     };
   }, [retryTimeout]);
+  
+  // Load draft from storage (simulated for now)
+  const loadDraft = async () => {
+    // This would typically load from AsyncStorage
+    // For now, we just use the state
+    if (draft && draft !== value) {
+      setLocalValue(draft);
+      onChangeText(draft);
+    }
+  };
+  
+  // Save draft locally
+  const saveDraft = (text) => {
+    setDraft(text);
+    // In a real implementation, you would save to AsyncStorage here
+    // AsyncStorage.setItem('draft_' + fieldId, text);
+  };
 
   const handleChangeText = (text) => {
     setLocalValue(text);
     onChangeText(text);
+    
+    // Always save draft immediately
+    saveDraft(text);
+    
+    // Always call onSave function for drafts
+    // This will be caught by our custom saveContentDraft/saveTitleDraft functions
+    // regardless of auto-save setting
+    try {
+      onSave(text);
+    } catch (err) {
+      console.error('Error saving draft via onSave:', err);
+    }
     
     // Reset any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
-    // Reset error state when user types
+    // Reset error states when user types
     if (saveError) {
       setSaveError(false);
     }
+    if (validationError) {
+      setValidationError(null);
+    }
     
-    // Set a new timeout for auto-save
+    // If auto-save is disabled, don't set a timeout for server save
+    if (disableAutoSave) {
+      return;
+    }
+    
+    // Set a new timeout for auto-save to server
     timeoutRef.current = setTimeout(() => {
-      handleSave(text);
+      validateAndSave(text);
     }, autoSaveDelay);
+  };
+  
+  const validateAndSave = (textToSave) => {
+    // Skip empty required fields for auto-save (don't report error)
+    if (required && (!textToSave || textToSave.trim() === '')) {
+      return;
+    }
+    
+    // Skip too short content for auto-save (don't report error)
+    if (minLength > 0 && textToSave && textToSave.length < minLength) {
+      return;
+    }
+    
+    // Only auto-save if there are actual changes
+    if (textToSave === value) {
+      return;
+    }
+    
+    // Proceed with save
+    handleSave(textToSave);
   };
 
   const handleSave = async (textToSave) => {
+    // Skip auto-saving if validation fails
+    if (required && (!textToSave || textToSave.trim() === '')) {
+      setValidationError('This field is required');
+      return;
+    }
+    
+    if (minLength > 0 && textToSave && textToSave.length < minLength) {
+      setValidationError(`Minimum ${minLength} characters required`);
+      return;
+    }
+    
     if (textToSave === value) {
       // No changes to save
       return;
@@ -122,7 +203,12 @@ const AutoSaveInput = ({
         placeholder={placeholder}
         placeholderTextColor={placeholderTextColor}
         multiline={multiline}
-        style={[styles.input, multiline && styles.multilineInput, style]}
+        style={[
+          styles.input, 
+          multiline && styles.multilineInput, 
+          validationError && styles.inputError,
+          style
+        ]}
         {...props}
       />
       
@@ -146,6 +232,12 @@ const AutoSaveInput = ({
           </TouchableOpacity>
         </View>
       )}
+      
+      {validationError && !isSaving && (
+        <View style={styles.validationError}>
+          <Text style={styles.errorText}>{validationError}</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -163,6 +255,9 @@ const styles = StyleSheet.create({
   multilineInput: {
     height: 200,
     textAlignVertical: 'top',
+  },
+  inputError: {
+    borderBottomColor: '#f44336',
   },
   indicator: {
     position: 'absolute',
@@ -194,6 +289,11 @@ const styles = StyleSheet.create({
   retryText: {
     color: '#fff',
     fontSize: 11,
+  },
+  validationError: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
   }
 });
 

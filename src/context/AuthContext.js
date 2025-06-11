@@ -53,13 +53,28 @@ export const AuthProvider = ({ children }) => {
   // Verify token validity
   const verifyToken = async (token) => {
     try {
+      if (!token) {
+        console.log('No token provided to verify');
+        return false;
+      }
+      
       // Store token temporarily
       await AsyncStorage.setItem('userToken', token);
       setUserToken(token);
       
       // Try to access a protected endpoint to verify token
-      await authApi.getProfile();
-      return true;
+      try {
+        await authApi.getProfile();
+        return true;
+      } catch (error) {
+        if (error.message === 'Session expired. Please log in again.') {
+          console.log('Token expired during verification');
+          await AsyncStorage.removeItem('userToken');
+          setUserToken(null);
+        }
+        console.error('Profile fetch failed during token verification:', error);
+        return false;
+      }
     } catch (error) {
       console.error('Token verification failed:', error);
       return false;
@@ -93,16 +108,35 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
+      console.log('Attempting to login with email:', email);
+      
+      // First clear any existing token to prevent conflicts
+      await AsyncStorage.removeItem('userToken');
+      setUserToken(null);
+      
+      // Attempt login
       const response = await authApi.login({ email, password });
+      
+      if (!response || !response.token) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Set token and user info
       setUserToken(response.token);
       setUserInfo({
         id: response.id,
         username: response.username,
         email: response.email
       });
+      
+      console.log('Login successful, token set');
       return true;
     } catch (error) {
+      console.error('Login error in AuthContext:', error);
       setError(error.message || 'Failed to login');
+      // Clear any partial token data on error
+      await AsyncStorage.removeItem('userToken');
+      setUserToken(null);
       return false;
     } finally {
       setIsLoading(false);
@@ -136,11 +170,26 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
-      await authApi.logout();
+      console.log('Logging out user, clearing token');
+      // Clear token from storage first
+      await AsyncStorage.removeItem('userToken');
+      
+      // Try to call logout API if possible
+      try {
+        await authApi.logout();
+      } catch (error) {
+        console.log('API logout failed, but continuing with local logout');
+      }
+      
+      // Clear state regardless of API success
       setUserToken(null);
       setUserInfo(null);
     } catch (error) {
       console.error('Logout error:', error);
+      // Force state clear even on error
+      setUserToken(null);
+      setUserInfo(null);
+      await AsyncStorage.removeItem('userToken');
     } finally {
       setIsLoading(false);
     }

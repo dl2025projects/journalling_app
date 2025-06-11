@@ -66,7 +66,8 @@ export const JournalProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error loading entries:', err);
-      setError('Failed to load journal entries');
+      setError(err.message || 'Failed to load journal entries');
+      setEntries([]); // Clear entries on error
     } finally {
       setLoading(false);
     }
@@ -75,6 +76,12 @@ export const JournalProvider = ({ children }) => {
   // Add a new entry
   const addEntry = async (entry) => {
     try {
+      // Validate entry before proceeding
+      if (!entry.title || entry.title.trim() === '') {
+        setError('Please provide title and content');
+        throw new Error('Please provide title and content');
+      }
+
       setLoading(true);
       setError(null);
       
@@ -103,7 +110,7 @@ export const JournalProvider = ({ children }) => {
       return newEntry;
     } catch (err) {
       console.error('Error adding entry:', err);
-      setError('Failed to add journal entry');
+      setError(err.message || 'Failed to add journal entry');
       throw err;
     } finally {
       setLoading(false);
@@ -113,6 +120,12 @@ export const JournalProvider = ({ children }) => {
   // Update an existing entry
   const updateEntry = async (id, updatedEntry) => {
     try {
+      // Validate entry before proceeding
+      if (!updatedEntry.title || updatedEntry.title.trim() === '') {
+        setError('Please provide title and content');
+        throw new Error('Please provide title and content');
+      }
+
       setLoading(true);
       setError(null);
       
@@ -135,7 +148,7 @@ export const JournalProvider = ({ children }) => {
       return result;
     } catch (err) {
       console.error('Error updating entry:', err);
-      setError('Failed to update journal entry');
+      setError(err.message || 'Failed to update journal entry');
       throw err;
     } finally {
       setLoading(false);
